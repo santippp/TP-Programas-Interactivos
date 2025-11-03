@@ -57,9 +57,9 @@ float' =
   do sign <- (char '-' >> return (-1))
                  <|> (char '+' >> return 1)
                  <|> return 1
-     xs <- some digit
+     xs <- many1 digit
      frac <- (do char '.'
-                 ys <- some digit
+                 ys <- many1 digit
                  return (read ("0." ++ ys)))
              <|> return 0
      return $ sign * (read xs + frac)
@@ -87,7 +87,9 @@ monomio = do c <- float'
 -- Parser para polinomio completo (ignora espacios al principio y al final)
 
 polinomio :: Parser Polinomio
-polinomio = do ms <- many monomio
+polinomio = do space
+               ms <- sepBy1 (token monomio) (token (char '+' <|> char '-'))
+               space
                return ms
 
 -- Funciones auxiliares, sirve para verificar que el formato ingresado sea correcto.
@@ -138,8 +140,7 @@ main = menuPrincipal crearP
 
 menuPrincipal :: Polinomio -> IO ()
 menuPrincipal poli = do
-    putStrLn "\n=========================================="
-    putStrLn "      TAD POLINOMIO - MENU PRINCIPAL"
+    putStrLn "Menu Principal"
     putStrLn "=========================================="
     putStrLn $ "Polinomio actual: " ++ mostrarPolinomio poli
     putStrLn "=========================================="
@@ -161,7 +162,7 @@ procesarOpcion "3" poli = opSumarMonomio poli
 procesarOpcion "4" poli = opObtenerCoeficiente poli
 procesarOpcion "5" poli = opEvaluarPolinomio poli
 procesarOpcion "6" _ = do
-    putStrLn "\n¡Hasta luego!"
+    putStrLn "\nFin del programa"
     return ()
 procesarOpcion _ poli = do
     putStrLn "\nElija una opción válida."
