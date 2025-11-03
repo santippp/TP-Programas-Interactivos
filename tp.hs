@@ -52,21 +52,26 @@ evalP (x : xs) value = (evalM x value) + (evalP xs value)
 
 -- PARSERS
 
-numero :: Parser Float
-numero = do char '-'
-            n <- nat
-            return (fromIntegral (-n))
-         <|> do n <- nat
-                return (fromIntegral n)
+float' :: Parser Float
+float' =
+  do sign <- (char '-' >> return (-1))
+                 <|> (char '+' >> return 1)
+                 <|> return 1
+     xs <- some digit
+     frac <- (do char '.'
+                 ys <- some digit
+                 return (read ("0." ++ ys)))
+             <|> return 0
+     return $ sign * (read xs + frac)
 
 -- Parser para monomios
 monomio :: Parser Monomio
-monomio = do c <- numero
+monomio = do c <- float'
              char 'x'
              char '^'
              e <- nat
              return (c, e)
-          <|> do c <- numero
+          <|> do c <- float'
                  char 'x'
                  return (c, 1)
           <|> do char 'x'
@@ -75,39 +80,14 @@ monomio = do c <- numero
                  return (1, e)
           <|> do char 'x'
                  return (1, 1)
-          <|> do c <- numero
+          <|> do c <- float'
                  return (c, 0)
 
--- Parser para '+' ignorando espacios
-mas :: Parser Char
-mas = do space
-         char '+'
-         space
-         return '+'
-
--- Parser para '-' ignorando espacios
-menos :: Parser Char
-menos = do space
-           char '-'
-           space
-           return '-'
-
--- Parser para un monomio con su signo
-monomioConSigno :: Parser Monomio
-monomioConSigno = do mas
-                     m <- monomio
-                     return m
-                  <|> do menos
-                         (c, e) <- monomio
-                         return (-c, e)
-                  <|> monomio
 
 -- Parser para polinomio completo (ignora espacios al principio y al final)
 
 polinomio :: Parser Polinomio
-polinomio = do space
-               ms <- many monomioConSigno
-               space
+polinomio = do ms <- many monomio
                return ms
 
 -- Funciones auxiliares, sirve para verificar que el formato ingresado sea correcto.
