@@ -1,6 +1,8 @@
 import Parsing
 import Control.Applicative ((<|>))
-
+import System.Process (callCommand)
+import Data.List (sortBy)
+import Data.Ord (comparing)
 
 type Monomio = (Float, Int) -- Coeficiente y Exponente
 
@@ -67,15 +69,13 @@ float' =
 -- Parser para monomios
 monomio :: Parser Monomio
 monomio = do c <- float'
-             char 'x'
-             char '^'
+             string "x^"
              e <- nat
              return (c, e)
           <|> do c <- float'
                  char 'x'
                  return (c, 1)
-          <|> do char 'x'
-                 char '^'
+          <|> do string "x^"
                  e <- nat
                  return (1, e)
           <|> do char 'x'
@@ -84,15 +84,11 @@ monomio = do c <- float'
                  return (c, 0)
 
 
--- Parser para polinomio completo (ignora espacios al principio y al final)
-
 polinomio :: Parser Polinomio
-polinomio = do space
-               ms <- sepBy1 (token monomio) (token (char '+' <|> char '-'))
-               space
+polinomio = do ms <- many monomio
                return ms
 
--- Funciones auxiliares, sirve para verificar que el formato ingresado sea correcto.
+-- Funciones auxiliares
 parsearPolinomio :: String -> Maybe Polinomio
 parsearPolinomio str = 
     case parse polinomio str of
@@ -105,7 +101,13 @@ parsearMonomio str =
         [(m, "")] -> Just m
         _         -> Nothing
 
--- Formato de salida
+parseaFloat :: String -> Maybe Float
+parseaFloat str = 
+    case parse float' str of
+        [(m, "")] -> Just m
+        _         -> Nothing
+
+-- Imprimir Monomio
 
 mostrarMonomio :: Monomio -> String
 mostrarMonomio (c, 0) = show c
@@ -126,32 +128,29 @@ mostrarPolinomio (m:ms) = mostrarMonomio m ++ formatoResto ms
             | c >= 0    = " + " ++ mostrarMonomio (c,e) ++ formatoResto xs
             | otherwise = " - " ++ mostrarMonomio (-c,e) ++ formatoResto xs
 
--- Funcion auxiliar para leer floats
+ordenar :: Polinomio -> Polinomio
+ordenar p = sortBy (comparing snd) p 
 
-leerFloat :: String -> Maybe Float
-leerFloat s = case reads s of        -- Reads devuelve una lista de posibles interpretaciones
-                [(x, "")] -> Just x
-                _         -> Nothing
+imprimirPolinomio :: Polinomio -> String
+imprimirPolinomio p = mostrarPolinomio (reverse (ordenar p))
 
--- Menú
+-- Menu
 
 main :: IO ()
 main = menuPrincipal crearP 
 
 menuPrincipal :: Polinomio -> IO ()
 menuPrincipal poli = do
+    clearScreen
     putStrLn "Menu Principal"
-    putStrLn "=========================================="
-    putStrLn $ "Polinomio actual: " ++ mostrarPolinomio poli
-    putStrLn "=========================================="
     putStrLn "1. Ingresar un polinomio"
     putStrLn "2. Obtener el grado del polinomio"
     putStrLn "3. Sumar un monomio al polinomio"
     putStrLn "4. Obtener el coeficiente principal"
     putStrLn "5. Evaluar el polinomio en un valor"
-    putStrLn "6. Salir"
-    putStrLn "=========================================="
-    putStr "Seleccione una opcion: "
+    putStrLn "6. Mostrar polinomio"
+    putStrLn "7. Salir"
+    putStr "\nSeleccione una opcion: "
     opcion <- getLine
     procesarOpcion opcion poli
 
@@ -161,31 +160,31 @@ procesarOpcion "2" poli = opObtenerGrado poli
 procesarOpcion "3" poli = opSumarMonomio poli
 procesarOpcion "4" poli = opObtenerCoeficiente poli
 procesarOpcion "5" poli = opEvaluarPolinomio poli
-procesarOpcion "6" _ = do
+procesarOpcion "6" poli = mostrarPolinomioIO poli
+procesarOpcion "7" _ = do
     putStrLn "\nFin del programa"
     return ()
 procesarOpcion _ poli = do
-    putStrLn "\nElija una opción válida."
+    putStrLn "\nElija una opción valida."
     menuPrincipal poli
 
--- Funciones del menú (opciones)
+-- Funciones del menu (opciones)
 
 opIngresarPolinomio :: IO ()
 opIngresarPolinomio = do
-    putStrLn "\n--- INGRESAR POLINOMIO ---"
     putStr "\nIngrese el polinomio: "
     input <- getLine
     case parsearPolinomio input of
         Nothing -> do
-            putStrLn "Formato invÃ¡lido, intente nuevamente."
+            putStrLn "Formato invalido"
             opIngresarPolinomio
         Just poli -> do
-            putStrLn $ "Polinomio ingresado: " ++ mostrarPolinomio poli
+            putStrLn $ "Polinomio ingresado: " ++ imprimirPolinomio poli
+            esperarEnter
             menuPrincipal poli
 
 opObtenerGrado :: Polinomio -> IO ()
 opObtenerGrado poli = do
-    putStrLn "\n--- OBTENER GRADO DEL POLINOMIO ---"
     let grado = obtenerGradoP poli
     putStrLn $ "El grado del polinomio es: " ++ show grado
     esperarEnter
@@ -193,22 +192,20 @@ opObtenerGrado poli = do
 
 opSumarMonomio :: Polinomio -> IO ()
 opSumarMonomio poli = do
-    putStrLn "\n--- SUMAR MONOMIO ---"
     putStr "\nIngrese el monomio a sumar: "
     input <- getLine
     case parsearMonomio input of
         Nothing -> do
-            putStrLn "Formato inválido, intente nuevamente."
-            opSumarMonomio poli -- si falla vuelve a llamarse
+            putStrLn "Formato invalido"
+            opSumarMonomio poli
         Just mono -> do
             let nuevoPoli = sumar mono poli
-            putStrLn $ "Nuevo polinomio: " ++ mostrarPolinomio nuevoPoli
+            mostrarPolinomioIO nuevoPoli
             esperarEnter
             menuPrincipal nuevoPoli
 
 opObtenerCoeficiente :: Polinomio -> IO ()
 opObtenerCoeficiente poli = do
-    putStrLn "\n--- OBTENER COEFICIENTE PRINCIPAL ---"
     let coef = obtenerCoeficienteP poli
     putStrLn $ "El coeficiente principal es: " ++ show coef
     esperarEnter
@@ -216,12 +213,11 @@ opObtenerCoeficiente poli = do
 
 opEvaluarPolinomio :: Polinomio -> IO ()
 opEvaluarPolinomio poli = do
-    putStrLn "\n--- EVALUAR POLINOMIO ---"
     putStr "Ingrese el valor de x: "
     input <- getLine
-    case leerFloat input of
+    case parseaFloat input of
         Nothing -> do
-            putStrLn "Ingrese un nÃºmero vÃ¡lido."
+            putStrLn "Ingrese un numero valido."
             opEvaluarPolinomio poli
         Just valor -> do
             let resultado = evalP poli valor
@@ -232,5 +228,14 @@ opEvaluarPolinomio poli = do
 esperarEnter :: IO ()
 esperarEnter = do
     putStr "\nPresionar Enter para continuar..."
-    _ <- getLine -- no guarda la basura antes del enter
+    _ <- getLine
     return ()
+
+mostrarPolinomioIO :: Polinomio -> IO ()
+mostrarPolinomioIO p = do 
+    putStrLn $ "\nEl polinomio es: " ++ imprimirPolinomio p
+    esperarEnter
+    menuPrincipal p
+
+clearScreen :: IO ()
+clearScreen = callCommand "clear"
