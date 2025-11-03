@@ -1,14 +1,12 @@
 import Parsing
 import Control.Applicative ((<|>))
-import Text.Read (readMaybe)
-import Data.Char (isDigit, isSpace)
-import Data.List (intercalate)
 
 
 type Monomio = (Float, Int) -- Coeficiente y Exponente
+
 type Polinomio = [Monomio]
 
--- ==================== TAD Monomio ====================
+-- Implementacion Monomio
 
 crearM :: Int -> Float -> Monomio
 crearM e c = (c, e)
@@ -22,7 +20,7 @@ obtenerCoef (c, e) = c
 evalM :: Monomio -> Float -> Float
 evalM (c, e) x = (x ** fromIntegral e) * c
 
--- ==================== TAD Polinomio ====================
+-- Implementacion Polinomio
 
 crearP :: Polinomio
 crearP = []
@@ -43,13 +41,16 @@ obtenerCoeficienteP p = go p (obtenerGradoP p)
                                           else go xs e
 
 sumar :: Monomio -> Polinomio -> Polinomio
-sumar (c, e) xs = (c, e) : xs
+sumar (c, e) [] = [(c,e)]
+sumar (c1, e1) ((c2, e2) : xs)  
+                        | e1 == e2 = ((c1 + c2), e1) : xs
+                        | otherwise = (c2, e2) : sumar (c1, e1) xs                  
 
 evalP :: Polinomio -> Float -> Float
 evalP [] _ = 0
 evalP (x : xs) value = (evalM x value) + (evalP xs value)
 
--- ==================== PARSERS ====================
+-- PARSERS
 
 numero :: Parser Float
 numero = do char '-'
@@ -58,7 +59,7 @@ numero = do char '-'
          <|> do n <- nat
                 return (fromIntegral n)
 
--- Parser para monomios: "3x^2", "-5x", "7", "x^3"
+-- Parser para monomios
 monomio :: Parser Monomio
 monomio = do c <- numero
              char 'x'
@@ -77,14 +78,14 @@ monomio = do c <- numero
           <|> do c <- numero
                  return (c, 0)
 
--- Parser para el sÃ­mbolo '+' ignorando espacios
+-- Parser para '+' ignorando espacios
 mas :: Parser Char
 mas = do space
          char '+'
          space
          return '+'
 
--- Parser para el sÃ­mbolo '-' ignorando espacios  
+-- Parser para '-' ignorando espacios
 menos :: Parser Char
 menos = do space
            char '-'
@@ -101,15 +102,15 @@ monomioConSigno = do mas
                          return (-c, e)
                   <|> monomio
 
--- Parser para polinomio completo
--- Ejemplos: "3x^2 - 2x + 5", "-2x^3 + 5x^5"
+-- Parser para polinomio completo (ignora espacios al principio y al final)
+
 polinomio :: Parser Polinomio
 polinomio = do space
                ms <- many monomioConSigno
                space
                return ms
 
--- FunciÃ³n auxiliar, sirve para verificar que el formato ingresado sea correcto
+-- Funciones auxiliares, sirve para verificar que el formato ingresado sea correcto.
 parsearPolinomio :: String -> Maybe Polinomio
 parsearPolinomio str = 
     case parse polinomio str of
@@ -122,7 +123,7 @@ parsearMonomio str =
         [(m, "")] -> Just m
         _         -> Nothing
 
--- ==================== FORMATO DE SALIDA ====================
+-- Formato de salida
 
 mostrarMonomio :: Monomio -> String
 mostrarMonomio (c, 0) = show c
@@ -143,17 +144,17 @@ mostrarPolinomio (m:ms) = mostrarMonomio m ++ formatoResto ms
             | c >= 0    = " + " ++ mostrarMonomio (c,e) ++ formatoResto xs
             | otherwise = " - " ++ mostrarMonomio (-c,e) ++ formatoResto xs
 
--- ==================== FUNCIONES AUXILIARES ====================
+-- Funcion auxiliar para leer floats
 
 leerFloat :: String -> Maybe Float
-leerFloat s = case reads s of
+leerFloat s = case reads s of        -- Reads devuelve una lista de posibles interpretaciones
                 [(x, "")] -> Just x
                 _         -> Nothing
 
--- ==================== MENU INTERACTIVO ====================
+-- Menú
 
 main :: IO ()
-main = menuPrincipal crearP
+main = menuPrincipal crearP 
 
 menuPrincipal :: Polinomio -> IO ()
 menuPrincipal poli = do
@@ -169,7 +170,7 @@ menuPrincipal poli = do
     putStrLn "5. Evaluar el polinomio en un valor"
     putStrLn "6. Salir"
     putStrLn "=========================================="
-    putStr "Seleccione una opciÃ³n: "
+    putStr "Seleccione una opcion: "
     opcion <- getLine
     procesarOpcion opcion poli
 
@@ -180,22 +181,17 @@ procesarOpcion "3" poli = opSumarMonomio poli
 procesarOpcion "4" poli = opObtenerCoeficiente poli
 procesarOpcion "5" poli = opEvaluarPolinomio poli
 procesarOpcion "6" _ = do
-    putStrLn "\nÂ¡Hasta luego!"
+    putStrLn "\n¡Hasta luego!"
     return ()
 procesarOpcion _ poli = do
-    putStrLn "\nElija una opciÃ³n vÃ¡lida."
+    putStrLn "\nElija una opción válida."
     menuPrincipal poli
 
--- ==================== OPCIONES DEL MENU ====================
+-- Funciones del menú (opciones)
 
 opIngresarPolinomio :: IO ()
 opIngresarPolinomio = do
     putStrLn "\n--- INGRESAR POLINOMIO ---"
-    putStrLn "Ejemplos de formato vÃ¡lido:"
-    putStrLn "  â€¢ 3x^2 - 2x + 5"
-    putStrLn "  â€¢ -2x^3 + 5x^5"
-    putStrLn "  â€¢ x^2 - x + 1"
-    putStrLn "  â€¢ 7"
     putStr "\nIngrese el polinomio: "
     input <- getLine
     case parsearPolinomio input of
@@ -217,17 +213,12 @@ opObtenerGrado poli = do
 opSumarMonomio :: Polinomio -> IO ()
 opSumarMonomio poli = do
     putStrLn "\n--- SUMAR MONOMIO ---"
-    putStrLn "Ejemplos de formato vÃ¡lido:"
-    putStrLn "  â€¢ 3x^2"
-    putStrLn "  â€¢ -5x"
-    putStrLn "  â€¢ x^3"
-    putStrLn "  â€¢ 7"
     putStr "\nIngrese el monomio a sumar: "
     input <- getLine
     case parsearMonomio input of
         Nothing -> do
-            putStrLn "Formato invÃ¡lido, intente nuevamente."
-            opSumarMonomio poli
+            putStrLn "Formato inválido, intente nuevamente."
+            opSumarMonomio poli -- si falla vuelve a llamarse
         Just mono -> do
             let nuevoPoli = sumar mono poli
             putStrLn $ "Nuevo polinomio: " ++ mostrarPolinomio nuevoPoli
@@ -260,5 +251,5 @@ opEvaluarPolinomio poli = do
 esperarEnter :: IO ()
 esperarEnter = do
     putStr "\nPresionar Enter para continuar..."
-    _ <- getLine
+    _ <- getLine -- no guarda la basura antes del enter
     return ()

@@ -18,6 +18,9 @@ evalM (c, e) x = (x ** fromIntegral e) * c
 
 -- Implementacion Polinomio
 
+crearP :: Polinomio
+crearP = []
+
 obtenerGradoP :: Polinomio -> Int
 obtenerGradoP [(c, e)] = e 
 obtenerGradoP ((c, e) : xs) = if e > (obtenerGradoP xs) then e 
@@ -32,8 +35,11 @@ obtenerCoeficienteP p = go p (obtenerGradoP p)
                                         else go xs e
 
 sumar :: Monomio -> Polinomio -> Polinomio
-sumar (c, e) xs = (c, e) : xs
-
+sumar (c, e) [] = [(c,e)]
+sumar (c1, e1) ((c2, e2) : xs)  
+                        | e1 == e2 = ((c1 + c2), e1) : xs
+                        | otherwise = (c2, e2) : sumar (c1, e1) xs
+                        
 evalP :: Polinomio -> Float -> Float
 evalP [] _ = 0
 evalP (x : xs) value = (evalM x value) + (evalP xs value)
