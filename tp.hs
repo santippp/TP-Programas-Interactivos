@@ -82,6 +82,11 @@ monomio = do c <- float'
                  return (1, 1)
           <|> do c <- float'
                  return (c, 0)
+          <|> do string "-x^"
+                 e <- nat
+                 return (-1, e)
+          <|> do string "-x"
+                 return (-1, 1)
 
 
 polinomio :: Parser Polinomio
