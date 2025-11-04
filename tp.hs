@@ -36,11 +36,8 @@ obtenerGradoP ((c, e) : xs) = if e > (obtenerGradoP xs) then e
 obtenerCoeficienteP :: Polinomio -> Float
 obtenerCoeficienteP [] = 0
 obtenerCoeficienteP [(c, e)] = c
-obtenerCoeficienteP p = go p (obtenerGradoP p)
-    where
-        go [] _ = 0
-        go ((c1, e1) : xs) e = if e1 == e then c1 + go xs e 
-                                          else go xs e
+obtenerCoeficienteP p@((c, e) : xs) = if e == (obtenerGradoP p) then c 
+                                                                else obtenerCoeficienteP xs
 
 sumar :: Monomio -> Polinomio -> Polinomio
 sumar (c, e) [] = [(c,e)]
@@ -139,6 +136,10 @@ ordenar p = sortBy (comparing snd) p
 imprimirPolinomio :: Polinomio -> String
 imprimirPolinomio p = mostrarPolinomio (reverse (ordenar p))
 
+convertirMonomios :: [Monomio] -> Polinomio
+convertirMonomios [(c, e)] = [(c,e)]
+convertirMonomios (x:xs) = sumar x (convertirMonomios xs)
+
 -- Menu
 
 main :: IO ()
@@ -172,7 +173,7 @@ procesarOpcion "7" _ = do
 procesarOpcion _ poli = do
     putStrLn "\nElija una opción valida."
     menuPrincipal poli
-
+ 
 -- Funciones del menu (opciones)
 
 opIngresarPolinomio :: IO ()
@@ -184,9 +185,10 @@ opIngresarPolinomio = do
             putStrLn "Formato invalido"
             opIngresarPolinomio
         Just poli -> do
-            putStrLn $ "Polinomio ingresado: " ++ imprimirPolinomio poli
+            let poliComprimido = convertirMonomios poli
+            putStrLn $ "Polinomio ingresado: " ++ imprimirPolinomio poliComprimido
             esperarEnter
-            menuPrincipal poli
+            menuPrincipal poliComprimido
 
 opObtenerGrado :: Polinomio -> IO ()
 opObtenerGrado poli = do
